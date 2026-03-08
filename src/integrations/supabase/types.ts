@@ -16,28 +16,37 @@ export type Database = {
     Tables: {
       api_keys: {
         Row: {
+          allowed_ips: string[] | null
           created_at: string
+          expires_at: string | null
           id: string
           key_name: string
           key_value: string
+          scope: string
           status: Database["public"]["Enums"]["key_status"]
           updated_at: string
           uses: number
         }
         Insert: {
+          allowed_ips?: string[] | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           key_name: string
           key_value: string
+          scope?: string
           status?: Database["public"]["Enums"]["key_status"]
           updated_at?: string
           uses?: number
         }
         Update: {
+          allowed_ips?: string[] | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           key_name?: string
           key_value?: string
+          scope?: string
           status?: Database["public"]["Enums"]["key_status"]
           updated_at?: string
           uses?: number
@@ -90,6 +99,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "devices_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      login_logs: {
+        Row: {
+          api_key_id: string | null
+          created_at: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          key_name: string
+          key_value: string
+        }
+        Insert: {
+          api_key_id?: string | null
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          key_name: string
+          key_value: string
+        }
+        Update: {
+          api_key_id?: string | null
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          key_name?: string
+          key_value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_logs_api_key_id_fkey"
             columns: ["api_key_id"]
             isOneToOne: false
             referencedRelation: "api_keys"
