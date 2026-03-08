@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Key, Power, ArrowLeft } from "lucide-react";
+import { Key, Power, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FastXLogo } from "@/components/FastXLogo";
 import { ShieldIcon } from "@/components/ShieldIcon";
 import { GlassCard } from "@/components/GlassCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { userAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { isExpiringSoon, isExpired, daysUntilExpiry } from "@/lib/utils";
 
 export default function LoginPage() {
   const [accessKey, setAccessKey] = useState("");
   const [loading, setLoading] = useState(false);
+  const [expiryWarning, setExpiryWarning] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -40,6 +43,20 @@ export default function LoginPage() {
         return;
       }
 
+      // Check expiration
+      if (data.expires_at && isExpired(data.expires_at)) {
+        toast.error("This key has expired. Please contact admin.");
+        return;
+      }
+
+      // Log login event
+      await supabase.from("login_logs").insert({
+        api_key_id: data.id,
+        key_name: data.key_name,
+        key_value: data.key_value,
+        device_info: navigator.userAgent,
+      });
+
       // Log device info
       const deviceInfo = {
         api_key_id: data.id,
@@ -52,11 +69,15 @@ export default function LoginPage() {
       };
 
       await supabase.from("devices").upsert(deviceInfo, { onConflict: "api_key_id" });
-      
-      // Increment usage
       await supabase.rpc("increment_key_usage", { key_val: accessKey.trim() });
 
-      userAuth.login(accessKey.trim(), data.key_name);
+      // Check if expiring soon
+      if (data.expires_at && isExpiringSoon(data.expires_at)) {
+        const days = daysUntilExpiry(data.expires_at);
+        setExpiryWarning(`Your key expires in ${days} day${days !== 1 ? "s" : ""}!`);
+      }
+
+      userAuth.login(accessKey.trim(), data.key_name, data.expires_at, data.scope);
       toast.success(`Welcome, ${data.key_name}!`);
       navigate("/portal");
     } catch (err) {
@@ -68,6 +89,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      {/* Theme toggle */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
       {/* Background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -75,14 +101,12 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-md animate-fade-in relative z-10">
-        {/* Shield Icon */}
         <div className="flex justify-center mb-6">
           <div className="p-6 rounded-2xl bg-primary/10 float">
             <ShieldIcon variant="primary" size={56} />
           </div>
         </div>
 
-        {/* Title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">
             Fast<span className="text-primary">X</span> Portal
@@ -90,7 +114,13 @@ export default function LoginPage() {
           <p className="text-muted-foreground">Secure Access Gateway</p>
         </div>
 
-        {/* Login Card */}
+        {expiryWarning && (
+          <div className="mb-4 p-3 rounded-lg bg-accent/20 border border-accent/30 flex items-center gap-2 text-accent animate-fade-in">
+            <AlertTriangle size={18} />
+            <span className="text-sm font-medium">{expiryWarning}</span>
+          </div>
+        )}
+
         <GlassCard className="animate-scale-in">
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
@@ -131,7 +161,6 @@ export default function LoginPage() {
           </form>
         </GlassCard>
 
-        {/* Footer */}
         <p className="text-center text-muted-foreground text-sm mt-6">
           Protected by FastX Security Protocol
         </p>

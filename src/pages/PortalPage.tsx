@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, LogOut, User } from "lucide-react";
+import { Search, LogOut, User, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FastXLogo } from "@/components/FastXLogo";
 import { GlassCard } from "@/components/GlassCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { API_ENDPOINTS, API_BASE_URL, EndpointId } from "@/lib/constants";
 import { userAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { isExpiringSoon, daysUntilExpiry } from "@/lib/utils";
 
 export default function PortalPage() {
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointId>("mobile");
@@ -26,6 +28,10 @@ export default function PortalPage() {
 
   const currentEndpoint = API_ENDPOINTS.find(e => e.id === selectedEndpoint)!;
 
+  const expiryWarning = session?.expiresAt && isExpiringSoon(session.expiresAt)
+    ? `Your key expires in ${daysUntilExpiry(session.expiresAt)} day${daysUntilExpiry(session.expiresAt) !== 1 ? "s" : ""}. Contact admin to renew.`
+    : null;
+
   const handleSearch = async () => {
     if (!queryValue.trim()) {
       toast.error(`Please enter ${currentEndpoint.placeholder.toLowerCase()}`);
@@ -37,13 +43,10 @@ export default function PortalPage() {
 
     try {
       const url = `${API_BASE_URL}${currentEndpoint.path}?${currentEndpoint.param}=${encodeURIComponent(queryValue.trim())}`;
-      
       const response = await fetch(url);
       const data = await response.json();
-      
       setResult(data);
 
-      // Log the search
       if (session) {
         const { data: keyData } = await supabase
           .from("api_keys")
@@ -78,21 +81,21 @@ export default function PortalPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="glass-card rounded-none border-t-0 border-x-0 px-6 py-4">
         <div className="container mx-auto flex items-center justify-between">
           <FastXLogo size="md" />
-          
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <div className="flex items-center gap-2 text-muted-foreground">
               <User size={18} />
               <span className="hidden sm:inline">{session?.keyName || "User"}</span>
+              {session?.scope && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                  {session.scope}
+                </span>
+              )}
             </div>
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-foreground"
-            >
+            <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
               <LogOut size={18} className="mr-2" />
               Logout
             </Button>
@@ -100,8 +103,15 @@ export default function PortalPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 container mx-auto px-4 py-8">
+        {/* Expiry Warning Banner */}
+        {expiryWarning && (
+          <div className="mb-6 p-4 rounded-lg bg-accent/20 border border-accent/30 flex items-center gap-3 animate-fade-in">
+            <AlertTriangle size={20} className="text-accent shrink-0" />
+            <p className="text-accent text-sm font-medium">{expiryWarning}</p>
+          </div>
+        )}
+
         {/* Endpoint Selection */}
         <div className="mb-8">
           <h2 className="text-muted-foreground mb-4">Select Endpoint</h2>
@@ -121,9 +131,7 @@ export default function PortalPage() {
                 <h3 className={`font-semibold ${selectedEndpoint === endpoint.id ? "text-primary" : "text-foreground"}`}>
                   {endpoint.name}
                 </h3>
-                <p className="text-sm text-muted-foreground font-mono mt-1">
-                  {endpoint.path}
-                </p>
+                <p className="text-sm text-muted-foreground font-mono mt-1">{endpoint.path}</p>
               </GlassCard>
             ))}
           </div>
@@ -162,7 +170,6 @@ export default function PortalPage() {
           </p>
         </GlassCard>
 
-        {/* Results */}
         {result && (
           <GlassCard className="animate-scale-in">
             <h3 className="text-lg font-semibold mb-4">Response</h3>

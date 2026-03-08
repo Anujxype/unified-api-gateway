@@ -20,13 +20,13 @@ export const adminAuth = {
 };
 
 export const userAuth = {
-  login: (keyValue: string, keyName: string): void => {
-    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify({ keyValue, keyName }));
+  login: (keyValue: string, keyName: string, expiresAt?: string | null, scope?: string | null): void => {
+    sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify({ keyValue, keyName, expiresAt, scope }));
   },
   logout: (): void => {
     sessionStorage.removeItem(USER_SESSION_KEY);
   },
-  getSession: (): { keyValue: string; keyName: string } | null => {
+  getSession: (): { keyValue: string; keyName: string; expiresAt?: string | null; scope?: string | null } | null => {
     const session = sessionStorage.getItem(USER_SESSION_KEY);
     return session ? JSON.parse(session) : null;
   },
