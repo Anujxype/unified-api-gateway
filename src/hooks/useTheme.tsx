@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import * as React from "react";
 
 type Theme = "dark" | "light";
 
@@ -7,32 +7,38 @@ interface ThemeContextType {
   toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextType>({
+const ThemeContext = React.createContext<ThemeContextType>({
   theme: "dark",
   toggleTheme: () => {},
 });
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem("fastx-theme");
-    return (saved as Theme) || "dark";
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = React.useState<Theme>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("fastx-theme");
+      return (saved as Theme) || "dark";
+    }
+    return "dark";
   });
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    document.documentElement.classList.toggle("light", theme === "light");
+  React.useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove("dark", "light");
+    root.classList.add(theme);
     localStorage.setItem("fastx-theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => prev === "dark" ? "light" : "dark");
+  const toggleTheme = React.useCallback(() => {
+    setTheme(prev => prev === "dark" ? "light" : "dark");
+  }, []);
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
+  return React.createElement(
+    ThemeContext.Provider,
+    { value: { theme, toggleTheme } },
+    children
   );
 }
 
 export function useTheme() {
-  return useContext(ThemeContext);
+  return React.useContext(ThemeContext);
 }
