@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShieldIcon } from "@/components/ShieldIcon";
 import { GlassCard } from "@/components/GlassCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { adminAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
