@@ -1,44 +1,39 @@
-import * as React from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 
 type Theme = "dark" | "light";
 
-interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
+let currentTheme: Theme = (typeof window !== "undefined" && localStorage.getItem("fastx-theme") as Theme) || "dark";
+const listeners = new Set<() => void>();
+
+function getTheme(): Theme {
+  return currentTheme;
 }
 
-const ThemeContext = React.createContext<ThemeContextType>({
-  theme: "dark",
-  toggleTheme: () => {},
-});
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+}
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = React.useState<Theme>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("fastx-theme");
-      return (saved as Theme) || "dark";
-    }
-    return "dark";
-  });
+function setThemeGlobal(theme: Theme) {
+  currentTheme = theme;
+  localStorage.setItem("fastx-theme", theme);
+  const root = document.documentElement;
+  root.classList.remove("dark", "light");
+  root.classList.add(theme);
+  listeners.forEach(l => l());
+}
 
-  React.useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove("dark", "light");
-    root.classList.add(theme);
-    localStorage.setItem("fastx-theme", theme);
-  }, [theme]);
-
-  const toggleTheme = React.useCallback(() => {
-    setTheme(prev => prev === "dark" ? "light" : "dark");
-  }, []);
-
-  return React.createElement(
-    ThemeContext.Provider,
-    { value: { theme, toggleTheme } },
-    children
-  );
+// Initialize on load
+if (typeof window !== "undefined") {
+  document.documentElement.classList.add(currentTheme);
 }
 
 export function useTheme() {
-  return React.useContext(ThemeContext);
+  const theme = useSyncExternalStore(subscribe, getTheme, () => "dark" as Theme);
+  
+  const toggleTheme = useCallback(() => {
+    setThemeGlobal(theme === "dark" ? "light" : "dark");
+  }, [theme]);
+
+  return { theme, toggleTheme };
 }
